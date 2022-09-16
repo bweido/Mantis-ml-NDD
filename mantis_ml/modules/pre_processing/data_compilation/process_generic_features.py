@@ -356,7 +356,7 @@ class ProcessGenericFeatures:
         generic_features_df = pd.merge(generic_features_df, mgi_essential_df, how='left', left_on='Gene_Name', right_on='Gene_Name')
         print(generic_features_df.shape)
 
-        generic_features_df = pd.merge(generic_features_df, bcm_df, how='left', left_on='Gene_Name', right_on='gene')
+        generic_features_df = pd.merge(generic_features_df, bcm_df, how='left', left_on='Gene_Name', right_on='Gene_Name')
         print(generic_features_df.shape)
 
         # Impute 'MGI_essential_gene' with zero, for all genes that don't have a '1' value:
