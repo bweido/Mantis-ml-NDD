@@ -600,7 +600,7 @@ class ProcessFeaturesFilteredByDisease(ProcessGenericFeatures):
 			pattern_lists = [gwas_include_terms, exclude_terms]
 			print(pattern_lists)
 
-			tissue_gwas_df = self.process_gwas_features(pattern_lists=pattern_lists, search_term=self.cfg.phenotype)
+			_, tissue_gwas_df = self.process_gwas_features(pattern_lists=pattern_lists, search_term=self.cfg.phenotype)
 			print('GWAS:', tissue_gwas_df.shape)
 
 

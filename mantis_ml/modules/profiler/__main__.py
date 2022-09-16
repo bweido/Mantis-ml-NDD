@@ -11,16 +11,19 @@ from mantis_ml.config_class import Config
 
 class MantisMlProfiler:
 
-	def __init__(self, config_file, output_dir, verbose=False):
+	def __init__(self, config_file, output_dir, verbose=False, break_lines=False):
 
 		self.config_file = config_file
 		self.output_dir = output_dir
 		self.verbose = verbose
+		self.break_lines = break_lines
 
 		# common strings to exclude from profiling
 		self.eng_stopwords = self.get_english_stopwords()
 		self.custom_bullet = '=' * 5 
 		self.line_spacer = '\n' * 6
+
+
 	
 
 	# Disable print to stdout
@@ -46,10 +49,7 @@ class MantisMlProfiler:
 
 
 	def assess_hpo_filtered_output(self, proc_obj, cfg):
-		print(self.line_spacer + "-----------------   Assessing HPO filtering [config parameters: 'seed_include_terms']	-----------------\n")
-
-		print("- Provided 'seed_include_terms':")
-		print(cfg.seed_include_terms)
+		print(self.line_spacer + "-----------------     Assessing HPO filtering     -----------------\n")
 
 		seed_df, hpo_selected_terms = proc_obj.process_hpo(cfg.seed_include_terms, cfg.exclude_terms, cfg.phenotype)
 
@@ -59,7 +59,11 @@ class MantisMlProfiler:
 			print(selected_genes)
 
 		print('\n' + self.bordered(self.custom_bullet + '  Selected HPO disease-associated terms  ' + self.custom_bullet))
-		print(sorted(list(hpo_selected_terms)))
+		if self.break_lines:
+			for v in sorted(list(hpo_selected_terms)):
+				print(v)
+		else:
+			print(sorted(list(hpo_selected_terms)))
 
 		hpo_selected_terms_expanded = [s.split() for s in hpo_selected_terms]
 		hpo_selected_terms_expanded = [item.lower() for sublist in hpo_selected_terms_expanded for item in sublist]
@@ -79,14 +83,44 @@ class MantisMlProfiler:
 				print(s + ':', count)
 
 
+	def assess_gwas_filtered_output(self, proc_obj, cfg):
+
+		print(self.line_spacer + "-----------------     Assessing GWAS filtering     -----------------\n")
+		# print("\n- Provided 'seed_include_terms':")
+		# print(cfg.seed_include_terms)
+		# print("\n- Provided 'additional_include_terms':")
+		# print(cfg.additional_include_terms)
+		# print("\n- Provided 'exclude_terms':")
+		# print(cfg.exclude_terms)
+
+		gwas_include_terms = cfg.seed_include_terms[:]
+		gwas_include_terms.extend(cfg.additional_include_terms)
+		gwas_exclude_terms = cfg.exclude_terms
+
+		pattern_lists = [gwas_include_terms, gwas_exclude_terms]
+		
+		self.blockPrint()
+		gwas_selected_terms, gwas_df = proc_obj.process_gwas_features(pattern_lists=pattern_lists, search_term=cfg.phenotype)
+		self.enablePrint()
+
+		gwas_selected_terms = list(gwas_selected_terms)
+
+		print('\n' + self.bordered(self.custom_bullet + '  Selected GWAS terms  ' + self.custom_bullet))
+		if self.break_lines:
+			for v in sorted(gwas_selected_terms):
+				print(v)
+		else:
+			print(sorted(gwas_selected_terms))
+
+
 
 	def assess_gtex_filtered_output(self, proc_obj, cfg):
 
-		print(self.line_spacer + "-----------------	Assessing GTEx filtering [config parameters: 'tissue' and 'additional_tissues']	-----------------\n")
-		print("\n- Provided 'seed_include_terms':")
-		print(cfg.seed_include_terms)
-		print("\n- Provided 'additional_include_terms':")
-		print(cfg.additional_include_terms)
+		print(self.line_spacer + "-----------------     Assessing GTEx filtering     -----------------\n")
+		# print("\n- Provided 'seed_include_terms':")
+		# print(cfg.seed_include_terms)
+		# print("\n- Provided 'additional_include_terms':")
+		# print(cfg.additional_include_terms)
 		#print("- Provided 'tissue':")
 		#print(cfg.tissue)
 		#print("\n- Provided 'additional_tissues':")
@@ -104,19 +138,23 @@ class MantisMlProfiler:
 			print(sorted(all_tissue_cols))
 
 		print('\n' + self.bordered(self.custom_bullet + '  Selected GTEx tissues  ' + self.custom_bullet))
-		print(sorted(selected_tissue_cols))
+		if self.break_lines:
+			for v in sorted(selected_tissue_cols):
+				print(v)
+		else:
+			print(sorted(selected_tissue_cols))
 
 
 
 	def assess_proteinatlas_filtered_output(self, proc_obj, cfg):
 
-		print(self.line_spacer + "-----------------	Assessing Protein Atlas filtering [config parameters: 'tissue', 'seed_include_terms', 'additional_include_terms']	-----------------\n")
-		print("- Provided 'tissue':")
-		#print(cfg.tissue)
-		print("\n- Provided 'seed_include_terms':")
-		print(cfg.seed_include_terms)
-		print("\n- Provided 'additional_include_terms':")
-		print(cfg.additional_include_terms)
+		print(self.line_spacer + "-----------------     Assessing Protein Atlas filtering     -----------------\n")
+		# print("- Provided 'tissue':")
+		# #print(cfg.tissue)
+		# print("\n- Provided 'seed_include_terms':")
+		# print(cfg.seed_include_terms)
+		# print("\n- Provided 'additional_include_terms':")
+		# print(cfg.additional_include_terms)
 
 		#protatlas_include_terms = [cfg.tissue]
 		#protatlas_include_terms.extend(cfg.seed_include_terms)
@@ -139,19 +177,24 @@ class MantisMlProfiler:
 			print(sorted(all_rna_samples))
 
 		print('\n' + self.bordered(self.custom_bullet + '  Selected samples from Protein Atlas (rna_tissue.tsv.gz)  ' + self.custom_bullet))
-		print(sorted(selected_rna_samples))
+		
+		if self.break_lines:
+			for v in sorted(selected_rna_samples):
+				print(v)
+		else:
+			print(sorted(selected_rna_samples))
 
 
 
 
 	def assess_msigdb_filtered_output(self, proc_obj, cfg):
-		print(self.line_spacer + "-----------------	Assessing MSigDB filtering [config parameters: 'tissue', 'seed_include_terms', 'additional_include_terms']	-----------------\n")
+		print(self.line_spacer + "-----------------     Assessing MSigDB filtering     -----------------\n")
 		#print("- Provided 'tissue':")
 		#print(cfg.tissue)
-		print("\n- Provided 'seed_include_terms':")
-		print(cfg.seed_include_terms)
-		print("\n- Provided 'additional_include_terms':")
-		print(cfg.additional_include_terms)
+		# print("\n- Provided 'seed_include_terms':")
+		# print(cfg.seed_include_terms)
+		# print("\n- Provided 'additional_include_terms':")
+		# print(cfg.additional_include_terms)
 
 		#msigdb_include_terms = [cfg.tissue]
 		#msigdb_include_terms.extend(cfg.seed_include_terms)
@@ -168,7 +211,11 @@ class MantisMlProfiler:
 		self.enablePrint()
 
 		print('\n' + self.bordered(self.custom_bullet + '  Selected Gene Ontology terms (from MSigDB)  ' + self.custom_bullet))
-		print(sorted(selected_go_terms))
+		if self.break_lines:
+			for v in sorted(selected_go_terms):
+				print(v)
+		else:
+			print(sorted(selected_go_terms))
 
 
 
@@ -177,11 +224,11 @@ class MantisMlProfiler:
 		if cfg.generic_classifier:
 			return 0
 
-		print(self.line_spacer + "-----------------	Assessing MGI filtering [config parameters: 'seed_include_terms', 'additional_include_terms']	-----------------\n")
-		print("- Provided 'seed_include_terms':")
-		print(cfg.seed_include_terms)
-		print("\n- Provided 'additional_include_terms':")
-		print(cfg.additional_include_terms)
+		print(self.line_spacer + "-----------------     Assessing MGI filtering     -----------------\n")
+		# print("- Provided 'seed_include_terms':")
+		# print(cfg.seed_include_terms)
+		# print("\n- Provided 'additional_include_terms':")
+		# print(cfg.additional_include_terms)
 
 		mgi_include_terms = cfg.seed_include_terms[:]
 		mgi_include_terms.extend(cfg.additional_include_terms)
@@ -201,7 +248,11 @@ class MantisMlProfiler:
 		# print(filtered_selected_mgi_phenotypes_expanded)
 
 		print('\n' + self.bordered(self.custom_bullet + '  Selected MGI phenotypes  ' + self.custom_bullet))
-		print(sorted(filtered_selected_mgi_phenotypes_expanded))
+		if self.break_lines:
+			for v in sorted(filtered_selected_mgi_phenotypes_expanded):
+				print(v)
+		else:
+			print(sorted(filtered_selected_mgi_phenotypes_expanded))
 
 
 
@@ -223,9 +274,21 @@ class MantisMlProfiler:
 		cfg = Config(self.config_file, self.output_dir)
 		proc_obj = ProcessFeaturesFilteredByDisease(cfg)
 
+
+		print("\n- Provided 'seed_include_terms':")
+		print(cfg.seed_include_terms)
+		print("\n- Provided 'additional_include_terms':")
+		print(cfg.additional_include_terms)
+		print("\n- Provided 'exclude_terms':")
+		print(cfg.exclude_terms)
+
+
 		# HPO
 		self.assess_hpo_filtered_output(proc_obj, cfg)
 
+		# GWAS
+		self.assess_gwas_filtered_output(proc_obj, cfg)
+		
 
 		# GTEx
 		self.assess_gtex_filtered_output(proc_obj, cfg)
@@ -252,6 +315,7 @@ def main():
 	parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
 	parser.add_argument("-c", dest="config_file", required=True, help="Config file (.yaml) with run parameters [Required]\n\n")
 	parser.add_argument("-o", dest="output_dir", help="Output directory name\n(absolute/relative path e.g. ./CKD, /tmp/Epilepsy-testing, etc.)\nIf it doesn't exist it will automatically be created [Required]\n\n", required=True)
+	parser.add_argument('-b', '--break_lines', action="count", help="Print terms per resource in separate lines\n\n")
 	parser.add_argument('-v', '--verbosity', action="count", help="Print verbose output\n\n")     
 
 	if len(sys.argv)==1:
@@ -261,9 +325,10 @@ def main():
 	args = parser.parse_args()      
 	config_file = args.config_file
 	output_dir = args.output_dir
+	break_lines = bool(args.break_lines)
 	verbose = bool(args.verbosity)
 	
-	profiler = MantisMlProfiler(config_file, output_dir, verbose=verbose)
+	profiler = MantisMlProfiler(config_file, output_dir, verbose=verbose, break_lines=break_lines)
 	profiler.run_mantis_ml_profiler()
 
 

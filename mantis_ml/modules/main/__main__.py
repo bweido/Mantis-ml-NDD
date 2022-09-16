@@ -50,7 +50,7 @@ class MantisMl:
 
 
 		# Run profiler and store results to ouput dir	
-		os.system("mantisml-profiler -vc " + config_file + " -o " + self.output_dir + " > " + str(self.cfg.out_root) + "/profiler_metadata.out")
+		os.system("mantisml-profiler -b -vc " + config_file + " -o " + self.output_dir + " > " + str(self.cfg.out_root) + "/profiler_metadata.out")
 
 
 

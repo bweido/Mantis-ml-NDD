@@ -1,4 +1,5 @@
 include mantis_ml/data/*
+include mantis_ml/data/bcm_single_cell/bcm_df.tsv
 include mantis_ml/data/exSNP/*
 include mantis_ml/data/gwas_catalog/*
 include mantis_ml/data/gnomad/*

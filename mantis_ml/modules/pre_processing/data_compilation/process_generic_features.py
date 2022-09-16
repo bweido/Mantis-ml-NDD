@@ -105,6 +105,7 @@ class ProcessGenericFeatures:
         # keep data frame with unique gene names
         uniq_canonical_df = gnomad_df.loc[~gnomad_df.gene.isin(dupl_genes)].copy()
 
+
         dupl_canonical_df['obs_sum'] = dupl_canonical_df['obs_lof'] + dupl_canonical_df['obs_mis'] + dupl_canonical_df['obs_syn']
         dupl_canonical_df = dupl_canonical_df.sort_values(by=['gene', 'obs_sum'], ascending=False)
         dupl_canonical_df.drop_duplicates(subset='gene', keep='first', inplace=True)
@@ -114,6 +115,9 @@ class ProcessGenericFeatures:
         uniq_gnomad_df.drop(['transcript', 'canonical', 'obs_syn', 'exp_syn', 'oe_syn', 'oe_syn_lower', 'oe_syn_upper', 'syn_z', 'gene_issues'], axis=1, inplace=True)
         uniq_gnomad_df.columns = ['GnomAD_' + c for c in uniq_gnomad_df.columns.values]
         uniq_gnomad_df.rename(columns={'GnomAD_gene': 'Gene_Name'}, inplace=True)
+
+        # drop any hsa-mir entries
+        uniq_gnomad_df = uniq_gnomad_df.loc[ ~uniq_gnomad_df.Gene_Name.str.contains('hsa-mir') ]
 
         if save_to_file:
             gnomad_df.to_csv(self.cfg.data_dir / 'gnomad/compiled_gnomad_features.tsv', sep='\t', index=None)
@@ -182,14 +186,21 @@ class ProcessGenericFeatures:
                 df = df.loc[ ~df['DISEASE/TRAIT'].str.contains(exclude_pattern) ]
             df = df.loc[df['DISEASE/TRAIT'].str.contains(include_pattern)]
         print(df.shape)
+
         if df.shape[0] == 0:
             return pd.DataFrame()
 
-        if verbose:
-            print(df['DISEASE/TRAIT'].unique())
+        all_selected_gwas_terms = list(df['DISEASE/TRAIT'].unique())
+        if verbose and search_term != 'All':
+            for v in all_selected_gwas_terms:
+                print(v.encode('utf-8'))
 
         # Keep only hits that achieved genome-wide significance
         signif_df = df.loc[df['P-VALUE'].astype(float) < float(signif_thres)]
+        signif_selected_gwas_terms = list(signif_df['DISEASE/TRAIT'].unique())
+        if verbose:
+            for v in signif_selected_gwas_terms:
+                print(v.encode('utf-8'))
         signif_df = signif_df[['REPORTED GENE(S)', 'P-VALUE', 'OR or BETA', 'DISEASE/TRAIT', 'MAPPED_TRAIT']]
         print(signif_df.shape)
 
@@ -247,13 +258,16 @@ class ProcessGenericFeatures:
         if pattern_lists is None and save_to_file:
             gwas_df.to_csv(self.cfg.data_dir / ('gwas_catalog/' + search_term + '_genes_GWAS_features.tsv'), sep='\t', index=None)
 
-        return gwas_df
+        if pattern_lists is not None:
+            return signif_selected_gwas_terms, gwas_df
+        else:
+            return gwas_df
 
 
 
     def process_mgi_essential_features(self, save_to_file=False):
         '''
-        Get humang genes with mouse ortholog with a lethality phenotype (essential mouse genes)
+        Get human genes with mouse ortholog with a lethality phenotype (essential mouse genes)
         :return: 
         '''
         print(">> Compiling MGI essential genes features...")
@@ -290,7 +304,22 @@ class ProcessGenericFeatures:
         return  mgi_essential_df
 
 
+    def process_bcm_sigle_cell_features(self, save_to_file=False):
+        '''
+        BCM single-cell and gevir features
+        :return: 
+        '''
+        print(">> Compiling BCM single-cell and gevir features...")
+
+        bcm_df = pd.read_csv(self.cfg.data_dir / 'bcm_single_cell/bcm_df.tsv', sep='\t')
+        print(bcm_df.shape)
+
+        return bcm_df
+
+
     def run_all(self):
+
+
         exac_df = self.process_exac()
         print('ExAC:', exac_df.shape)
 
@@ -311,10 +340,13 @@ class ProcessGenericFeatures:
         mgi_essential_df = self.process_mgi_essential_features()
         print('MGI:', mgi_essential_df.shape)
 
+        bcm_df = self.process_bcm_sigle_cell_features()
+
 
         print("\n>> Merging all data frames together...")
         generic_features_df = pd.merge(exac_df, gnomad_df, how='left', left_on='Gene_Name', right_on='Gene_Name')
         print(generic_features_df.shape)
+
         generic_features_df = pd.merge(generic_features_df, genic_intol_df, how='left', left_on='Gene_Name', right_on='Gene_Name')
         print(generic_features_df.shape)
         generic_features_df = pd.merge(generic_features_df, essential_mouse_df, how='left', left_on='Gene_Name', right_on='Gene_Name')
@@ -324,14 +356,19 @@ class ProcessGenericFeatures:
         generic_features_df = pd.merge(generic_features_df, mgi_essential_df, how='left', left_on='Gene_Name', right_on='Gene_Name')
         print(generic_features_df.shape)
 
+        generic_features_df = pd.merge(generic_features_df, bcm_df, how='left', left_on='Gene_Name', right_on='gene')
+        print(generic_features_df.shape)
+
         # Impute 'MGI_essential_gene' with zero, for all genes that don't have a '1' value:
         # these values are not missing data but rather represent a 'False'/zero feature value.
         generic_features_df['MGI_essential_gene'].fillna(0,inplace=True)
+        # Impute BCM single-cell/gevir data with zero
+        for col in bcm_df.columns:
+            generic_features_df[col].fillna(0, inplace=True)
 
 
         generic_features_df.to_csv(self.cfg.generic_feature_table, sep='\t', index=None)
         print("Saved to {0}".format(self.cfg.generic_feature_table))
-
         print(generic_features_df.shape)
 
 
