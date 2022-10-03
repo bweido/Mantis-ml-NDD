@@ -26,7 +26,8 @@ include mantis_ml/data/human_protein_atlas/*
 include mantis_ml/data/exac-broadinstitute/*
 include mantis_ml/data/exac-broadinstitute/cnv/*
 include mantis_ml/data/essential_genes_for_mouse/*
-include mantis_ml/data/msigdb/tables_per_gene_set/*
+include mantis_ml/data/msigdb/tables_per_gene_set/c5.all.v6.2.symbols.gmt.simplified
+include mantis_ml/data/msigdb/tables_per_gene_set/c5.all.v6.2.symbols.gmt
 include mantis_ml/data/gtex/RNASeq/*
 include mantis_ml/modules/supervised_learn/feature_selection/boruta_feature_selection.R
 include mantis_ml/conf/.config

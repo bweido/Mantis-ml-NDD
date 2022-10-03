@@ -1,6 +1,7 @@
 import pandas as pd
 pd.set_option('display.max_columns', None)
 import numpy as np
+from scipy.stats import fisher_exact
 import re
 import os, sys
 import random
@@ -82,6 +83,89 @@ class ProcessFeaturesFilteredByDisease(ProcessGenericFeatures):
 		print("Total HPO Genes associated with selected pattern: {0}".format(known_genes_df.shape[0]))
 
 		return known_genes_df, hpo_selected_terms
+
+
+
+	def run_go_enrich_for_seed_genes(self, known_genes):
+
+		print("\n>> Calculating top enriched GO terms for given seed genes...")
+
+		full_go_file = (self.cfg.data_dir / 'msigdb/tables_per_gene_set/c5.all.v6.2.symbols.gmt.simplified')
+
+		go_df = pd.read_csv(full_go_file, header=None, sep='\t')
+		go_df.columns = ['go_term', 'genes']
+
+		go_dict = {}
+		all_genes = set()
+
+		for i in range(go_df.shape[0]):
+			x = go_df.iloc[i]
+			genes = set(x['genes'].split(','))
+			all_genes.update(genes)
+			
+			go_dict[ x['go_term'] ] = genes
+
+
+		# == enrichment analyses ==
+		go_enrich_arr = None
+		cnt = 0
+
+		for go_term in go_dict.keys():
+			cnt += 1
+			if cnt % 500 == 0:
+				print(cnt)
+
+			cur_go_genes = go_dict[go_term]
+			go_known_genes = cur_go_genes.intersection(known_genes)
+			#print(go_known_genes)
+
+			go_known_genes_len = len(go_known_genes)
+			non_go_known_genes_len = len(known_genes) - go_known_genes_len
+
+			contig_table = np.array([[go_known_genes_len, non_go_known_genes_len], [len(cur_go_genes), len(all_genes) - len(cur_go_genes)]])
+			#print(contig_table)
+
+			oddsr, pval = fisher_exact(contig_table) 
+			#print(oddsr, pval)
+
+			if go_enrich_arr is not None:
+				go_enrich_arr = np.concatenate((go_enrich_arr, np.array([[go_term, pval, oddsr]])))
+				#print(go_enrich_arr)
+			else:
+				go_enrich_arr = np.array([[go_term, pval, oddsr]])
+		
+			known_go_df = pd.DataFrame.from_records(go_enrich_arr)
+			known_go_df.columns = ['go', 'pval', 'oddsr']
+			known_go_df = known_go_df.astype({'pval': 'float', 'oddsr': 'float'})
+
+			sorted_known_go_df = known_go_df.sort_values(['pval', 'oddsr'], ascending=[True, False])
+		
+			top_known_go_terms = sorted_known_go_df.head(20)['go'].tolist()
+
+		print('Top enriched GO terms for given seed genes:', top_known_go_terms)
+
+
+		top_known_go_df = pd.DataFrame()
+		for term in top_known_go_terms:
+			tmp_df = pd.DataFrame({'Gene_Name': list(go_dict[term]), term: 1})
+			tmp_df = tmp_df[['Gene_Name', term]]
+			print(tmp_df.shape)
+
+			if top_known_go_df.shape[0] > 0:
+				top_known_go_df = pd.merge(top_known_go_df, tmp_df, how='outer', left_on='Gene_Name', right_on='Gene_Name')
+				print('top_known_go_df:', top_known_go_df.shape)
+			else:
+				top_known_go_df = tmp_df
+
+		top_known_go_df.fillna(0, inplace=True)
+
+		#top_known_go_df.to_csv('top_known_go_df.temp', sep='\t')
+		
+		#top_known_go_df = pd.DataFrame({'Gene_Name': known_genes}, index=range(len(known_genes)))
+		#for top_go_term in top_known_go_terms:
+		#	top_known_go_df[top_go_term] = 1
+
+		return top_known_go_df, top_known_go_terms
 
 
 
@@ -406,8 +490,8 @@ class ProcessFeaturesFilteredByDisease(ProcessGenericFeatures):
 
 
 
-
 		return prot_atlas_df, selected_normal_tissues, all_normal_tissues, selected_rna_samples, all_rna_samples
+
 
 
 
@@ -588,6 +672,14 @@ class ProcessFeaturesFilteredByDisease(ProcessGenericFeatures):
 			sys.exit('[Error] No seed genes found for current terms:' + ','.join(seed_include_terms))
 
 
+		seed_genes = seed_genes_df['Gene_Name'].tolist()
+
+		# Find top-20 most enriched GO terms for the given seed genes
+		top_known_go_df, top_known_go_terms = self.run_go_enrich_for_seed_genes(seed_genes)
+		# TODO: feed top_known_go_terms to the process_msigdb_go_features() function to include these as well
+		
+
+		
 		# GTEx
 		gtex_df, _, _ = self.process_gtex_features()
 		print('GTEx:', gtex_df.shape)
@@ -643,11 +735,22 @@ class ProcessFeaturesFilteredByDisease(ProcessGenericFeatures):
 
 
 		print("\n>> Merging all data frames together...")
-		filtered_by_disease_features_df = pd.merge(inweb_df, seed_genes_df, how='left', left_on='Gene_Name', right_on='Gene_Name')
-		print(filtered_by_disease_features_df.shape)
+		#filtered_by_disease_features_df = pd.merge(inweb_df, seed_genes_df, how='left', left_on='Gene_Name', right_on='Gene_Name')
+		#print(filtered_by_disease_features_df.shape)
+		# GTEx df as based data frame
 		if gtex_df.shape[0] > 0:
-			filtered_by_disease_features_df = pd.merge(filtered_by_disease_features_df, gtex_df, how='left', left_on='Gene_Name', right_on='Gene_Name')
+			filtered_by_disease_features_df = pd.merge(gtex_df, seed_genes_df, how='left', left_on='Gene_Name', right_on='Gene_Name')
 			print(filtered_by_disease_features_df.shape)
+		
+		if filtered_by_disease_features_df.shape[0] > 0:
+			filtered_by_disease_features_df = pd.merge(filtered_by_disease_features_df, inweb_df, how='left', left_on='Gene_Name', right_on='Gene_Name')
+		else:
+			filtered_by_disease_features_df = pd.merge(inweb_df, seed_genes_df, how='left', left_on='Gene_Name', right_on='Gene_Name')
+			
+		print(filtered_by_disease_features_df.shape)
+		print(filtered_by_disease_features_df.head())
+
+
 		if prot_atlas_df.shape[0] > 0:
 			filtered_by_disease_features_df = pd.merge(filtered_by_disease_features_df, prot_atlas_df, how='left', left_on='Gene_Name', right_on='Gene_Name')
 			print(filtered_by_disease_features_df.shape)
@@ -658,6 +761,11 @@ class ProcessFeaturesFilteredByDisease(ProcessGenericFeatures):
 
 
 		if not self.cfg.generic_classifier:
+
+			if top_known_go_df.shape[0] > 0:
+				filtered_by_disease_features_df = pd.merge(filtered_by_disease_features_df, top_known_go_df, how='left', left_on='Gene_Name', right_on='Gene_Name')
+				print(filtered_by_disease_features_df.shape)
+
 			if tissue_gwas_df.shape[0] > 0:
 				filtered_by_disease_features_df = pd.merge(filtered_by_disease_features_df, tissue_gwas_df, how='left', left_on='Gene_Name', right_on='Gene_Name')
 				print(filtered_by_disease_features_df.shape)
@@ -680,10 +788,21 @@ class ProcessFeaturesFilteredByDisease(ProcessGenericFeatures):
 		go_cols = [c for c in msigdb_go_df.columns.values if c != 'Gene_Name']
 		for c in go_cols:
 			if c in filtered_by_disease_features_df.columns:
-				filtered_by_disease_features_df[c].fillna(0,inplace=True)
+				filtered_by_disease_features_df[c].fillna(0, inplace=True)
+
+		# top enriched GO terms for given seed genes
+		for c in top_known_go_terms:
+			if c in filtered_by_disease_features_df.columns:
+				filtered_by_disease_features_df[c].fillna(0, inplace=True)
+
+		# impute inweb missing nodes with zero
+		for c in inweb_df.columns.values:
+			if c != 'Gene_Name':
+				filtered_by_disease_features_df[c].fillna(0, inplace=True)
 
 		if 'MGI_mouse_knockout_feature' in filtered_by_disease_features_df.columns:
-			filtered_by_disease_features_df['MGI_mouse_knockout_feature'].fillna(0,inplace=True)
+			filtered_by_disease_features_df['MGI_mouse_knockout_feature'].fillna(0, inplace=True)
+
 		# ---------------------------------------------------------
 
 
@@ -719,7 +838,8 @@ class ProcessFeaturesFilteredByDisease(ProcessGenericFeatures):
 if __name__ == '__main__':
 
 	config_file = sys.argv[1] #'../../../config.yaml'
-	cfg = Config(config_file)
+	out_dir = sys.argv[2]
+	cfg = Config(config_file, out_dir)
 
 	proc = ProcessFeaturesFilteredByDisease(cfg)
 	#gtex_df, all_selected_tissue_cols, _ = proc.process_gtex_features()

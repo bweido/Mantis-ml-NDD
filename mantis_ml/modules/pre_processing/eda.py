@@ -204,7 +204,8 @@ class EDA:
 
         clean_df = df.drop(to_drop, axis=1)
         print("Removed {0} features with correlation > {1} ...".format(str(len(to_drop)), str(thres)))
-        print('-Remaining number of features: {0}'.format(str(clean_df.shape[1])))
+        print('(removed features:', to_drop, ')')
+        print('- Remaining number of features: {0}'.format(str(clean_df.shape[1])))
 
         return clean_df
 
