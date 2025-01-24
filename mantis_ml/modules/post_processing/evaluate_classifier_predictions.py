@@ -252,6 +252,8 @@ class ClassifierEvaluator:
 
 
 		# ===== Boxplot for 'Unlabelled' genes =====
+
+		self.known_genes_df=self.known_genes_df.drop_duplicates(subset=['Gene_Name'])
 		unlabelled_genes = self.known_genes_df.loc[self.known_genes_df.known_gene == 0, 'Gene_Name'].values
 
 		self.unlabelled_gene_proba_df = self.gene_proba_df[unlabelled_genes]
