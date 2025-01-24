@@ -6,7 +6,7 @@ from keras.optimizers import Adam
 
 # Random Forest parameters
 rf_params = {
-    'n_jobs': -1,
+    'n_jobs': 1,
     'n_estimators': 100,
     'max_features' : 'auto',
     'max_depth': 15,
@@ -18,7 +18,7 @@ rf_params = {
 
 # Extra Trees Parameters
 et_params = {
-    'n_jobs': -1,
+    'n_jobs': 1,
     'n_estimators': 100,
     'max_features': 'auto',
     'max_depth': 15,
@@ -56,10 +56,19 @@ xgb_params = {
     'subsample': 0.8,
     'colsample_bytree': 0.8,
     'objective': 'binary:logistic',
-    'nthread': -1,
+    'nthread': 1,
     'scale_pos_weight': 1
 }
-
+# Can rewrite so we don't have to manually update grid search values
+#xgb_params.update({
+#    'max_depth': 4,
+#    'learning_rate': 0.01245635956565708,
+#    'n_estimators': 75,
+#    'min_child_weight': 4,
+#    'subsample': 0.6281876542042278,
+#    'colsample_bytree': 0.6218801016088052,
+#    'gamma': 0.22054776831178058
+#})
 # DNN parameters
 dnn_params = {
     'regl': 0.01,
