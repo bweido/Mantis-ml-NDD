@@ -25,6 +25,6 @@ python -m pip install -e .
 The full set of predictions for all five models (monoallelic ASD/DD/DEE and biallelic DD/DEE) is available at https://nddgenes.com.
 ### References
 
-- Our implementation: "Genome-wide prediction of dominant and recessive neurodevelopmental disorder risk genes" (Dhindsa et al., 2024)
+- Our implementation: "Genome-wide prediction of dominant and recessive neurodevelopmental disorder risk genes" (Dhindsa et al., 2025)
 - Original mantis-ml framework: https://github.com/astrazeneca-cgr-publications/mantis-ml-release
 - Original paper: Vitsios & Petrovski (2020). "Mantis-ml: Disease-Agnostic Gene Prioritization from High-Throughput Genomic Screens by Stochastic Semi-supervised Learning"
